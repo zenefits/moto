@@ -21,7 +21,7 @@ from .history_event import HistoryEvent
 from .timeout import Timeout
 from .workflow_type import WorkflowType
 from .workflow_execution import WorkflowExecution
-
+import time
 
 KNOWN_SWF_TYPES = {
     "activity": ActivityType,
@@ -34,6 +34,9 @@ class SWFBackend(BaseBackend):
         self.region_name = region_name
         self.domains = []
         super(SWFBackend, self).__init__()
+
+        # pre-register swf domain
+        self.register_domain('dev_local', '90', 'dev local mock enviornment')
 
     def reset(self):
         region_name = self.region_name
@@ -169,9 +172,20 @@ class SWFBackend(BaseBackend):
         return domain.get_workflow_execution(workflow_id, run_id=run_id)
 
     def poll_for_decision_task(self, domain_name, task_list, identity=None):
-        # process timeouts on all objects
-        self._process_timeouts()
-        domain = self._get_domain(domain_name)
+        return self._long_poll(self._poll_for_decision_task, domain_name, task_list, identity)
+
+    def _long_poll(self, poll_func, domain_name, task_list, identity=None):
+        start = time.time()
+        while time.time() - start <= 60:
+            task = poll_func(domain_name, task_list, identity)
+            if task:
+                return task
+
+            time.sleep(1)
+
+        return None
+
+    def _poll_for_decision_task(self, domain_name, task_list, identity=None):
         # Real SWF cases:
         # - case 1: there's a decision task to return, return it
         # - case 2: there's no decision task to return, so wait for timeout
@@ -179,13 +193,14 @@ class SWFBackend(BaseBackend):
         # - case 3: timeout reached, no decision, return an empty decision
         #           (e.g. a decision with an empty "taskToken")
         #
-        # For the sake of simplicity, we forget case 2 for now, so either
-        # there's a DecisionTask to return, either we return a blank one.
-        #
         # SWF client libraries should cope with that easily as long as tests
         # aren't distributed.
         #
-        # TODO: handle long polling (case 2) for decision tasks
+
+        # process timeouts on all objects
+        self._process_timeouts()
+        domain = self._get_domain(domain_name)
+
         candidates = []
         for _task_list, tasks in domain.decision_task_lists.items():
             if _task_list == task_list:
@@ -260,9 +275,14 @@ class SWFBackend(BaseBackend):
             wfe = decision_task.workflow_execution
             wfe.complete_decision_task(decision_task.task_token,
                                        decisions=decisions,
-                                       execution_context=execution_context)
+                                       execution_context=execution_context,
+                                       backend=self)
+
 
     def poll_for_activity_task(self, domain_name, task_list, identity=None):
+        return self._long_poll(self._poll_for_activity_task, domain_name, task_list, identity)
+
+    def _poll_for_activity_task(self, domain_name, task_list, identity=None):
         # process timeouts on all objects
         self._process_timeouts()
         domain = self._get_domain(domain_name)
@@ -273,13 +293,11 @@ class SWFBackend(BaseBackend):
         # - case 3: timeout reached, no activity task, return an empty response
         #           (e.g. a response with an empty "taskToken")
         #
-        # For the sake of simplicity, we forget case 2 for now, so either
-        # there's an ActivityTask to return, either we return a blank one.
-        #
         # SWF client libraries should cope with that easily as long as tests
         # aren't distributed.
         #
-        # TODO: handle long polling (case 2) for activity tasks
+
+
         candidates = []
         for _task_list, tasks in domain.activity_task_lists.items():
             if _task_list == task_list:

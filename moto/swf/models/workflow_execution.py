@@ -18,7 +18,6 @@ from .decision_task import DecisionTask
 from .history_event import HistoryEvent
 from .timeout import Timeout
 
-
 # TODO: extract decision related logic into a Decision class
 class WorkflowExecution(object):
 
@@ -41,6 +40,7 @@ class WorkflowExecution(object):
     ]
 
     def __init__(self, domain, workflow_type, workflow_id, **kwargs):
+        self.kwargs = kwargs
         self.domain = domain
         self.workflow_id = workflow_id
         self.run_id = uuid.uuid4().hex
@@ -306,7 +306,7 @@ class WorkflowExecution(object):
         )
         dt.start(evt.event_id)
 
-    def complete_decision_task(self, task_token, decisions=None, execution_context=None):
+    def complete_decision_task(self, task_token, decisions=None, execution_context=None, backend=None):
         # 'decisions' can be None per boto.swf defaults, so replace it with something iterable
         if not decisions:
             decisions = []
@@ -322,9 +322,10 @@ class WorkflowExecution(object):
         )
         dt.complete()
         self.should_schedule_decision_next = False
-        self.handle_decisions(evt.event_id, decisions)
+        self.handle_decisions(evt.event_id, decisions, backend)
         if self.should_schedule_decision_next:
             self.schedule_decision_task()
+
         self.latest_execution_context = execution_context
 
     def _check_decision_attributes(self, kind, value, decision_id):
@@ -388,7 +389,7 @@ class WorkflowExecution(object):
         if any(problems):
             raise SWFDecisionValidationException(problems)
 
-    def handle_decisions(self, event_id, decisions):
+    def handle_decisions(self, event_id, decisions, backend=None):
         """
         Handles a Decision according to SWF docs.
         See: http://docs.aws.amazon.com/amazonswf/latest/apireference/API_Decision.html
@@ -404,10 +405,19 @@ class WorkflowExecution(object):
                 self.fail(event_id, attributes.get("details"), attributes.get("reason"))
             elif decision_type == "ScheduleActivityTask":
                 self.schedule_activity_task(event_id, attributes)
+            elif decision_type == "ContinueAsNewWorkflowExecution":
+                self.continued_as_new(event_id)
+                backend.start_workflow_execution(
+                    self.domain.name,
+                    self.workflow_id,
+                    self.workflow_type.name,
+                    self.workflow_type.version,
+                    **self.kwargs
+                )
+
             else:
                 # TODO: implement Decision type: CancelTimer
                 # TODO: implement Decision type: CancelWorkflowExecution
-                # TODO: implement Decision type: ContinueAsNewWorkflowExecution
                 # TODO: implement Decision type: RecordMarker
                 # TODO: implement Decision type: RequestCancelActivityTask
                 # TODO: implement Decision type: RequestCancelExternalWorkflowExecution
@@ -428,6 +438,15 @@ class WorkflowExecution(object):
             "WorkflowExecutionCompleted",
             decision_task_completed_event_id=event_id,
             result=result,
+        )
+
+    def continued_as_new(self, event_id):
+        self.execution_status = "CLOSED"
+        self.close_status = "Continued As New"
+        self.close_timestamp = unix_time()
+        self._add_event(
+            "WorkflowExecutionContinuedAsNew",
+            decision_task_completed_event_id=event_id
         )
 
     def fail(self, event_id, details=None, reason=None):

@@ -316,7 +316,7 @@ class SWFResponse(BaseResponse):
         _workflow_type = self._params["workflowType"]
         workflow_name = _workflow_type["name"]
         workflow_version = _workflow_type["version"]
-        _default_task_list = self._params.get("defaultTaskList")
+        _default_task_list = self._params.get("taskList")
         if _default_task_list:
             task_list = _default_task_list.get("name")
         else:

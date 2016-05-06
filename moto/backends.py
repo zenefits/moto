@@ -22,6 +22,7 @@ from moto.ses import ses_backend
 from moto.sns import sns_backend
 from moto.sqs import sqs_backend
 from moto.sts import sts_backend
+from moto.swf import swf_backend
 from moto.route53 import route53_backend
 
 BACKENDS = {
@@ -50,6 +51,7 @@ BACKENDS = {
     'sts': sts_backend,
     'route53': route53_backend,
     'lambda': lambda_backend,
+    'swf': swf_backend,
 }
 
 
