@@ -3,14 +3,14 @@ from __future__ import unicode_literals
 from setuptools import setup, find_packages
 
 install_requires = [
-    "Jinja2",
-    "boto>=2.36.0",
-    "flask",
+    "Jinja2==2.8",
+    "boto==2.9.7",
+    "flask==0.10.1",
     "httpretty==0.8.10",
-    "requests",
-    "xmltodict",
-    "six",
-    "werkzeug",
+    "requests==2.9.1",
+    "xmltodict==0.9.0",
+    "six==1.8.0",
+    "Werkzeug==0.10.4",
 ]
 
 extras_require = {
