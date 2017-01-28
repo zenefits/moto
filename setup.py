@@ -9,7 +9,7 @@ install_requires = [
     "httpretty==0.8.10",
     "requests==2.9.1",
     "xmltodict==0.9.0",
-    "six==1.8.0",
+    "six==1.10.0",
     "Werkzeug==0.10.4",
 ]
 
@@ -20,7 +20,7 @@ extras_require = {
 
 setup(
     name='moto',
-    version='0.4.24.1',
+    version='0.4.24.2',
     description='A library that allows your python tests to easily'
                 ' mock out the boto library',
     author='Steve Pulec',
