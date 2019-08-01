@@ -3,7 +3,7 @@ import logging
 logging.getLogger('boto').setLevel(logging.CRITICAL)
 
 __title__ = 'moto'
-__version__ = '0.4.24.1'
+__version__ = '0.4.24.3'
 
 
 from .swf import mock_swf  # flake8: noqa
