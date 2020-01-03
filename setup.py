@@ -9,7 +9,7 @@ install_requires = [
     "httpretty==0.8.10",
     "requests==2.9.1",
     "xmltodict==0.9.0",
-    "six==1.10.0",
+    "six>=1.10.0",
     "Werkzeug==0.10.4",
 ]
 
